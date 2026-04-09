@@ -21,6 +21,7 @@
 #include <sys/select.h>
 #include <sys/socket.h>
 
+#include <cerrno>
 #include <cstring>
 #include <chrono>
 #include <stdexcept>

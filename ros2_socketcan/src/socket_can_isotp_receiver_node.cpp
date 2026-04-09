@@ -17,7 +17,9 @@
 #include "ros2_socketcan/socket_can_isotp_receiver_node.hpp"
 #include "ros2_socketcan/socket_can_common.hpp"
 
+#include <algorithm>
 #include <chrono>
+#include <cstring>
 #include <memory>
 #include <string>
 #include <utility>
@@ -117,11 +119,14 @@ void SocketCanIsotpReceiverNode::receive()
       continue;
     }
 
-    isotp_frame_msg.data.resize(MAX_ISOTP_DATA_LENGTH);
+    // Use a local buffer for the raw ISO-TP read, since
+    // FdFrame.data is bounded to 64 bytes but ISO-TP can
+    // deliver up to MAX_ISOTP_DATA_LENGTH bytes.
+    uint8_t raw_buf[MAX_ISOTP_DATA_LENGTH];
 
     std::size_t nbytes = 0;
     try {
-      nbytes = receiver_->receive(isotp_frame_msg.data.data<void>(), interval_ns_);
+      nbytes = receiver_->receive(raw_buf, interval_ns_);
     } catch (const std::exception & ex) {
       RCLCPP_WARN_THROTTLE(
         this->get_logger(), *this->get_clock(), 1000,
@@ -130,13 +135,29 @@ void SocketCanIsotpReceiverNode::receive()
       continue;
     }
 
-    isotp_frame_msg.data.resize(nbytes);
+    // Cap to FdFrame max capacity (64 bytes)
+    const std::size_t copy_len =
+      std::min(nbytes, MAX_FD_DATA_LENGTH);
+    if (nbytes > MAX_FD_DATA_LENGTH) {
+      RCLCPP_WARN_THROTTLE(
+        this->get_logger(), *this->get_clock(), 1000,
+        "ISO-TP payload (%zu bytes) exceeds FdFrame "
+        "capacity (%zu bytes), truncating",
+        nbytes, MAX_FD_DATA_LENGTH);
+    }
+
+    isotp_frame_msg.data.resize(copy_len);
+    std::memcpy(
+      isotp_frame_msg.data.data<void>(),
+      raw_buf, copy_len);
     isotp_frame_msg.header.stamp = this->now();
     isotp_frame_msg.id = rx_id_;
     isotp_frame_msg.is_extended = false;
     isotp_frame_msg.is_error = false;
-    isotp_frame_msg.len = static_cast<uint8_t>(nbytes);
-    isotp_frames_pub_->publish(std::move(isotp_frame_msg));
+    isotp_frame_msg.len =
+      static_cast<uint8_t>(copy_len);
+    isotp_frames_pub_->publish(
+      std::move(isotp_frame_msg));
   }
 }
 
