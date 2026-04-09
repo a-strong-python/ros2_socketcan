@@ -18,7 +18,9 @@ ament_auto_add_library(${PROJECT_NAME} SHARED
   src/socket_can_common.cpp
   src/socket_can_id.cpp
   src/socket_can_receiver.cpp
-  src/socket_can_sender.cpp)
+  src/socket_can_sender.cpp
+  src/socket_can_isotp_receiver.cpp
+  src/socket_can_isotp_sender.cpp)
 
 ament_auto_add_library(socket_can_receiver_node SHARED
   src/socket_can_receiver_node.cpp
@@ -44,6 +46,32 @@ target_link_libraries(socket_can_sender_node
 rclcpp_components_register_node(socket_can_sender_node
   PLUGIN "drivers::socketcan::SocketCanSenderNode"
   EXECUTABLE socket_can_sender_node_exe
+)
+
+ament_auto_add_library(socket_can_isotp_receiver_node SHARED
+  src/socket_can_isotp_receiver_node.cpp
+)
+
+target_link_libraries(socket_can_isotp_receiver_node
+  ${PROJECT_NAME}
+)
+
+rclcpp_components_register_node(socket_can_isotp_receiver_node
+  PLUGIN "drivers::socketcan::SocketCanIsotpReceiverNode"
+  EXECUTABLE socket_can_isotp_receiver_node_exe
+)
+
+ament_auto_add_library(socket_can_isotp_sender_node SHARED
+  src/socket_can_isotp_sender_node.cpp
+)
+
+target_link_libraries(socket_can_isotp_sender_node
+  ${PROJECT_NAME}
+)
+
+rclcpp_components_register_node(socket_can_isotp_sender_node
+  PLUGIN "drivers::socketcan::SocketCanIsotpSenderNode"
+  EXECUTABLE socket_can_isotp_sender_node_exe
 )
 
 if(BUILD_TESTING)

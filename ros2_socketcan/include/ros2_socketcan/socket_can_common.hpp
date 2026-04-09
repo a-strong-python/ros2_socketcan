@@ -43,6 +43,18 @@ int32_t bind_can_socket(
   const std::string & interface, bool enable_fd,
   bool enable_loopback = false);
 
+/// Bind a non-blocking CAN_ISOTP socket to the given interface
+/// \param[in] interface The name of the CAN interface (e.g. "can0")
+/// \param[in] tx_id The CAN ID used for transmitting ISO-TP frames
+/// \param[in] rx_id The CAN ID used for receiving ISO-TP frames (flow control)
+/// \return The file descriptor bound to the given interface
+/// \throw std::runtime_error If socket creation or binding failed
+/// \throw std::domain_error If the provided interface name is too long
+int32_t bind_isotp_socket(
+  const std::string & interface,
+  uint32_t tx_id,
+  uint32_t rx_id);
+
 /// Set SocketCAN filters
 /// \param[in] fd File descriptor of the socket
 /// \param[in] f_list List of filters to be applied.
