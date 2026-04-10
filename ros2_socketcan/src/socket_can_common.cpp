@@ -22,6 +22,7 @@
 #include <sys/socket.h>
 #include <sys/ioctl.h>
 #include <linux/can/raw.h>
+#include <linux/can/isotp.h>
 
 #include <unistd.h>
 #include <linux/can.h>
@@ -89,6 +90,55 @@ int32_t bind_can_socket(const std::string & interface, bool enable_fd, bool enab
       sizeof(enable_canfd)))
   {
     throw std::runtime_error{"Failed to set CAN FD support option"};
+  }
+
+  return file_descriptor;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+int32_t bind_isotp_socket(
+  const std::string & interface,
+  uint32_t tx_id,
+  uint32_t rx_id)
+{
+  if (interface.length() >= static_cast<std::string::size_type>(IFNAMSIZ)) {
+    throw std::domain_error{"CAN interface name too long"};
+  }
+
+  // Create ISO-TP socket (SOCK_DGRAM, CAN_ISOTP)
+  const auto file_descriptor = socket(PF_CAN, SOCK_DGRAM, CAN_ISOTP);
+  if (0 > file_descriptor) {
+    throw std::runtime_error{
+      "Failed to open ISO-TP socket. Is the can_isotp kernel module loaded?"};
+  }
+
+  // Make it non-blocking so we can use timeouts
+  if (0 != fcntl(file_descriptor, F_SETFL, O_NONBLOCK)) {
+    (void)close(file_descriptor);
+    throw std::runtime_error{"Failed to set ISO-TP socket to nonblocking"};
+  }
+
+  // Set up interface index
+  struct ifreq ifr;
+  (void)std::memset(&ifr, 0, sizeof(ifr));
+  (void)strncpy(&ifr.ifr_name[0U], interface.c_str(), interface.length() + 1U);
+  if (0 != ioctl(file_descriptor, static_cast<uint32_t>(SIOCGIFINDEX), &ifr)) {
+    (void)close(file_descriptor);
+    throw std::runtime_error{"Failed to get interface index via ioctl()"};
+  }
+
+  // Set up ISO-TP address
+  struct sockaddr_can addr;
+  (void)std::memset(&addr, 0, sizeof(addr));
+  addr.can_family = static_cast<decltype(addr.can_family)>(AF_CAN);
+  addr.can_ifindex = ifr.ifr_ifindex;
+  addr.can_addr.tp.tx_id = tx_id;
+  addr.can_addr.tp.rx_id = rx_id;
+
+  // Bind address
+  if (0 > bind(file_descriptor, reinterpret_cast<struct sockaddr *>(&addr), sizeof(addr))) {
+    (void)close(file_descriptor);
+    throw std::runtime_error{"Failed to bind ISO-TP socket"};
   }
 
   return file_descriptor;
