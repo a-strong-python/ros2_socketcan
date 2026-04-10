@@ -105,6 +105,10 @@ LNI::CallbackReturn SocketCanIsotpReceiverNode::on_cleanup(const lc::State & sta
 LNI::CallbackReturn SocketCanIsotpReceiverNode::on_shutdown(const lc::State & state)
 {
   (void)state;
+  running_.store(false);
+  if (receiver_thread_ && receiver_thread_->joinable()) {
+    receiver_thread_->join();
+  }
   RCLCPP_DEBUG(this->get_logger(), "ISO-TP Receiver shutting down.");
   return LNI::CallbackReturn::SUCCESS;
 }
