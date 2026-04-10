@@ -68,6 +68,7 @@ LNI::CallbackReturn SocketCanIsotpReceiverNode::on_configure(const lc::State & s
   isotp_frames_pub_ =
     this->create_publisher<ros2_socketcan_msgs::msg::FdFrame>("from_can_bus_isotp", 500);
 
+  running_.store(true);
   receiver_thread_ = std::make_unique<std::thread>(&SocketCanIsotpReceiverNode::receive, this);
 
   return LNI::CallbackReturn::SUCCESS;
@@ -92,10 +93,11 @@ LNI::CallbackReturn SocketCanIsotpReceiverNode::on_deactivate(const lc::State & 
 LNI::CallbackReturn SocketCanIsotpReceiverNode::on_cleanup(const lc::State & state)
 {
   (void)state;
-  isotp_frames_pub_.reset();
-  if (receiver_thread_->joinable()) {
+  running_.store(false);
+  if (receiver_thread_ && receiver_thread_->joinable()) {
     receiver_thread_->join();
   }
+  isotp_frames_pub_.reset();
   RCLCPP_DEBUG(this->get_logger(), "ISO-TP Receiver cleaned up.");
   return LNI::CallbackReturn::SUCCESS;
 }
@@ -113,7 +115,7 @@ void SocketCanIsotpReceiverNode::receive()
     rosidl_runtime_cpp::MessageInitialization::ZERO);
   isotp_frame_msg.header.frame_id = "can";
 
-  while (rclcpp::ok()) {
+  while (rclcpp::ok() && running_.load()) {
     if (this->get_current_state().id() != State::PRIMARY_STATE_ACTIVE) {
       std::this_thread::sleep_for(100ms);
       continue;

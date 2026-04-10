@@ -17,6 +17,7 @@
 #ifndef ROS2_SOCKETCAN__SOCKET_CAN_ISOTP_RECEIVER_NODE_HPP_
 #define ROS2_SOCKETCAN__SOCKET_CAN_ISOTP_RECEIVER_NODE_HPP_
 
+#include <atomic>
 #include <memory>
 #include <thread>
 #include <string>
@@ -78,6 +79,7 @@ private:
   std::unique_ptr<SocketCanIsotpReceiver> receiver_;
   std::unique_ptr<std::thread> receiver_thread_;
   std::chrono::nanoseconds interval_ns_;
+  std::atomic<bool> running_{false};
 };
 }  // namespace socketcan
 }  // namespace drivers
