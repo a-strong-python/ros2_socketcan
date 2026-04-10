@@ -103,7 +103,7 @@ void SocketCanIsotpSenderNode::on_isotp_frame(
 {
   if (this->get_current_state().id() == State::PRIMARY_STATE_ACTIVE) {
     try {
-      sender_->send(msg->data.data<void>(), msg->len, timeout_ns_);
+      sender_->send(msg->data.data<void>(), msg->data.size(), timeout_ns_);
     } catch (const std::exception & ex) {
       RCLCPP_WARN_THROTTLE(
         this->get_logger(), *this->get_clock(), 1000,
